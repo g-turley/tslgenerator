@@ -227,13 +227,13 @@ void main() {
     final frames = generator.generate();
 
     // Debug output
-    print('Total frames: ${frames.length}');
+    print('Total frames: ${frames.totalFrames}');
     print(
-      'Single/error frames: ${frames.where((f) => f.frameType != FrameType.normal).length}',
+      'Single/error frames: ${frames.singleFrames + frames.errorFrames}',
     );
 
     expect(
-      frames.length,
+      frames.totalFrames,
       equals(16),
       reason: 'Complex TSL should generate exactly 16 frames',
     );
@@ -247,13 +247,13 @@ void main() {
     final frames = generator.generate();
 
     // Debug output
-    print('Total frames: ${frames.length}');
+    print('Total frames: ${frames.totalFrames}');
     print(
-      'Single/error frames: ${frames.where((f) => f.frameType != FrameType.normal).length}',
+      'Single/error frames: ${frames.singleFrames + frames.errorFrames}',
     );
 
     expect(
-      frames.length,
+      frames.totalFrames,
       equals(7776),
       reason: 'Complex TSL should generate exactly 7776 frames',
     );
@@ -267,13 +267,13 @@ void main() {
     final frames = generator.generate();
 
     // Debug output
-    print('Total frames: ${frames.length}');
+    print('Total frames: ${frames.totalFrames}');
     print(
-      'Single/error frames: ${frames.where((f) => f.frameType != FrameType.normal).length}',
+      'Single/error frames: ${frames.singleFrames + frames.errorFrames}',
     );
 
     expect(
-      frames.length,
+      frames.totalFrames,
       equals(1696),
       reason: 'Complex TSL should generate exactly 1696 frames',
     );
@@ -286,13 +286,13 @@ void main() {
     final frames = generator.generate();
 
     // Debug output
-    print('Total frames: ${frames.length}');
+    print('Total frames: ${frames.totalFrames}');
     print(
-      'Single/error frames: ${frames.where((f) => f.frameType != FrameType.normal).length}',
+      'Single/error frames: ${frames.singleFrames + frames.errorFrames}',
     );
 
     expect(
-      frames.length,
+      frames.totalFrames,
       equals(562),
       reason: 'Complex TSL should generate exactly 562 frames',
     );
@@ -306,13 +306,13 @@ void main() {
     final frames = generator.generate();
 
     // Debug output
-    print('Total frames: ${frames.length}');
+    print('Total frames: ${frames.totalFrames}');
     print(
-      'Single/error frames: ${frames.where((f) => f.frameType != FrameType.normal).length}',
+      'Single/error frames: ${frames.singleFrames + frames.errorFrames}',
     );
 
     expect(
-      frames.length,
+      frames.totalFrames,
       equals(35),
       reason: 'Complex TSL should generate exactly 35 frames',
     );

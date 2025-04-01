@@ -66,24 +66,34 @@ class TestFrame {
       buffer.writeln();
 
       // Only one entry for single/error frames
-      final entry = categoriesAndChoices.entries.first;
-      buffer.write("   ${entry.key.name} :  ${entry.value?.name ?? '<n/a>'}");
-      buffer.writeln();
+      if (categoriesAndChoices.isNotEmpty) {
+        final entry = categoriesAndChoices.entries.first;
+        buffer.write("   ${entry.key.name} :  ${entry.value?.name ?? '<n/a>'}");
+        buffer.writeln();
+      } else {
+        buffer.write("   <No category/choice>");
+        buffer.writeln();
+      }
     } else {
       buffer.write("\t\t(Key = $key)");
       buffer.writeln();
 
-      // Find the longest category name for alignment
-      final maxCategoryNameLength = categoriesAndChoices.keys
-          .map((c) => c.name.length)
-          .fold(0, (max, length) => length > max ? length : max);
-
-      // Write all categories and choices
-      for (final entry in categoriesAndChoices.entries) {
-        buffer.write(
-          "   ${entry.key.name.padRight(maxCategoryNameLength)} :  ${entry.value?.name ?? '<n/a>'}",
-        );
+      if (categoriesAndChoices.isEmpty) {
+        buffer.write("   <No categories/choices>");
         buffer.writeln();
+      } else {
+        // Find the longest category name for alignment
+        final maxCategoryNameLength = categoriesAndChoices.keys
+            .map((c) => c.name.length)
+            .fold(0, (max, length) => length > max ? length : max);
+
+        // Write all categories and choices
+        for (final entry in categoriesAndChoices.entries) {
+          buffer.write(
+            "   ${entry.key.name.padRight(maxCategoryNameLength)} :  ${entry.value?.name ?? '<n/a>'}",
+          );
+          buffer.writeln();
+        }
       }
     }
 

@@ -4,7 +4,6 @@ import '../constants.dart';
 import '../models/category.dart';
 import '../models/choice.dart';
 import '../models/property.dart';
-import '../models/expression.dart';
 import 'expression_parser.dart';
 
 /// Exception thrown when parsing TSL files.

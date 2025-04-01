@@ -1,11 +1,23 @@
 import '../models/category.dart';
 import '../models/choice.dart';
-import '../models/property.dart';
 import '../models/test_frame.dart';
+import '../models/tsl_specification.dart';
+import 'generator_result.dart';
 
-/// Generates test frames from parsed TSL categories and choices.
+/// Generates test frames from TSL categories and choices.
 class FrameGenerator {
+  /// Creates a frame generator from the given [specification].
+  ///
+  /// This is the recommended constructor when you have a complete
+  /// TslSpecification.
+  factory FrameGenerator.fromSpecification(TslSpecification specification) {
+    return FrameGenerator(specification.categories);
+  }
+
   /// Creates a frame generator for the given [categories].
+  ///
+  /// This constructor is provided for backwards compatibility.
+  /// It's recommended to use [FrameGenerator.fromSpecification] instead.
   FrameGenerator(this.categories);
 
   /// The categories to generate frames from.
@@ -20,8 +32,11 @@ class FrameGenerator {
   /// Counter for the current frame number.
   int frameCounter = 1;
 
-  /// Generates all test frames and returns them.
-  List<TestFrame> generate() {
+  /// Generates all test frames and returns a [GeneratorResult].
+  ///
+  /// This method clears any previously generated frames and
+  /// generates all frames defined by the TSL specification.
+  GeneratorResult generate() {
     frames.clear();
     frameCounter = 1;
 
@@ -42,7 +57,7 @@ class FrameGenerator {
       0,
     );
 
-    return frames;
+    return GeneratorResult(List.unmodifiable(frames));
   }
 
   /// Resets all properties to false.
@@ -253,18 +268,5 @@ class FrameGenerator {
 
     frame.setKey(keyParts.join('.'));
     frames.add(frame);
-  }
-
-  /// Returns a string representation of all generated test frames.
-  @override
-  String toString() {
-    final buffer = StringBuffer();
-
-    for (final frame in frames) {
-      buffer.writeln(frame.toString());
-      buffer.writeln(); // Add an extra line between frames
-    }
-
-    return buffer.toString();
   }
 }

@@ -23,11 +23,11 @@ void main() {
       final frames = generator.generate();
 
       // Should generate 2 single/error frames plus normal frames
-      expect(frames.length, equals(3));
+      expect(frames.totalFrames, equals(3));
 
       // First two frames should be single/error frames
-      expect(frames[0].frameType, equals(FrameType.single));
-      expect(frames[1].frameType, equals(FrameType.error));
+      expect(frames.singleFramesList.first.frameType, equals(FrameType.single));
+      expect(frames.errorFramesList.first.frameType, equals(FrameType.error));
     });
 
     test('generates conditional frames', () {
@@ -59,11 +59,11 @@ void main() {
       // Should generate frames for valid combinations
       // Category1.Choice1 + Category2.Choice2
       // Category1.Choice1 + Category2.Choice3
-      expect(frames.length, equals(2));
+      expect(frames.totalFrames, equals(2));
 
       // Check keys
-      expect(frames[0].key, equals('1.1'));
-      expect(frames[1].key, equals('1.2'));
+      expect(frames.frames[0].key, equals('1.1'));
+      expect(frames.frames[1].key, equals('1.2'));
     });
 
     test('handles complex conditions correctly', () {
@@ -98,7 +98,7 @@ void main() {
       // Should generate frames for valid combinations:
       // Category1.Choice1 + Category2.Choice2 (when propA and propB are true)
       // Category1.Choice3 + Category2.<none> (when propB is true but propA is false)
-      expect(frames.length, equals(2));
+      expect(frames.totalFrames, equals(2));
     });
 
     test('handles if-else constraints correctly', () {
@@ -124,7 +124,7 @@ void main() {
       final frames = generator.generate();
 
       // Find the frame that should be a single frame
-      final singleFrame = frames.firstWhere(
+      final singleFrame = frames.frames.firstWhere(
         (frame) => frame.fromIfElse && frame.ifElseBranch == 'if',
         orElse:
             () => TestFrame(
@@ -160,12 +160,12 @@ void main() {
       final frames = generator.generate();
 
       // Should generate 3 * 2 * 2 = 12 frames
-      expect(frames.length, equals(12));
+      expect(frames.totalFrames, equals(12));
 
       // Check some of the keys
-      expect(frames[0].key, equals('1.1.1'));
-      expect(frames[1].key, equals('1.1.2'));
-      expect(frames[2].key, equals('1.2.1'));
+      expect(frames.frames[0].key, equals('1.1.1'));
+      expect(frames.frames[1].key, equals('1.1.2'));
+      expect(frames.frames[2].key, equals('1.2.1'));
     });
   });
 }
