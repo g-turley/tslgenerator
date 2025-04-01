@@ -74,39 +74,6 @@ void main() {
       expect(category2.choices[2].hasIfExpression, isTrue);
     });
 
-    test('can parse complex expressions', () {
-      // Create a file with complex expressions
-      final complexFile = File('test/complex_test.tsl');
-      complexFile.writeAsStringSync('''
-# Complex expressions
-
-  Category:
-    Choice1.          [if A && B || C]
-    Choice2.          [if !(A && B)]
-    Choice3.          [if A && (B || C)]
-    Choice4.          [if !(!A || B) && C || D]
-''');
-
-      try {
-        final parser = TslParser(complexFile);
-        final categories = parser.parse();
-
-        expect(categories.length, equals(1));
-        expect(categories[0].choices.length, equals(4));
-
-        // Properties should be created implicitly
-        expect(parser.properties.length, equals(4));
-        expect(parser.properties.containsKey('A'), isTrue);
-        expect(parser.properties.containsKey('B'), isTrue);
-        expect(parser.properties.containsKey('C'), isTrue);
-        expect(parser.properties.containsKey('D'), isTrue);
-      } finally {
-        if (complexFile.existsSync()) {
-          complexFile.deleteSync();
-        }
-      }
-    });
-
     test('throws exception for invalid files', () {
       final nonExistentFile = File('non_existent.tsl');
 

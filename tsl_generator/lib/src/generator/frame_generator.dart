@@ -17,9 +17,13 @@ class FrameGenerator {
   /// All test frames that have been generated.
   final List<TestFrame> frames = [];
 
+  /// Counter for the current frame number.
+  int frameCounter = 1;
+
   /// Generates all test frames and returns them.
   List<TestFrame> generate() {
     frames.clear();
+    frameCounter = 1;
 
     // Find the maximum category name length for formatting
     maxCategoryNameLength = categories.fold(
@@ -28,34 +32,17 @@ class FrameGenerator {
           category.name.length > max ? category.name.length : max,
     );
 
-    // First, pre-process normal frames to set properties
-    // (this ensures if-expressions evaluate correctly for single frames)
-    _preProcessNormalChoices();
-
-    // Generate single and error frames
+    // Generate single and error frames first
     _generateSingleFrames();
 
-    // Reset all properties to false
+    // Then generate normal frames
     _resetAllProperties();
-
-    // Generate normal frames
-    _generateNormalFrames(0, {}, {});
+    _generateNormalFrames(
+      List<Choice>.filled(categories.length, Choice('DUMMY')),
+      0,
+    );
 
     return frames;
-  }
-
-  /// Pre-processes normal choices to set properties correctly for single frame evaluation.
-  void _preProcessNormalChoices() {
-    // This is a simplified version that just sets properties from regular choices
-    for (final category in categories) {
-      for (final choice in category.choices) {
-        if (choice.frameType == FrameType.normal && !choice.hasIfExpression) {
-          for (final property in choice.properties) {
-            property.value = true;
-          }
-        }
-      }
-    }
   }
 
   /// Resets all properties to false.
@@ -81,17 +68,20 @@ class FrameGenerator {
       for (final choice in category.choices) {
         // Regular single/error frames
         if (choice.frameType != FrameType.normal) {
-          final frame = TestFrame(frames.length + 1);
+          final frame = TestFrame(frameCounter++);
           frame.setSingleFrame(category, choice, choice.frameType);
           frames.add(frame);
         }
 
         // If-based single/error frames
         if (choice.hasIfExpression) {
-          final ifConditionResult = choice.ifExpression!.evaluate();
+          _resetAllProperties();
+          _preProcessProperties();
 
-          if (choice.ifFrameType != FrameType.normal && ifConditionResult) {
-            final frame = TestFrame(frames.length + 1);
+          final ifResult = choice.ifExpression!.evaluate();
+
+          if (ifResult && choice.ifFrameType != FrameType.normal) {
+            final frame = TestFrame(frameCounter++);
             frame.setSingleFrame(
               category,
               choice,
@@ -99,12 +89,10 @@ class FrameGenerator {
               branchType: 'if',
             );
             frames.add(frame);
-          }
-
-          if (choice.hasElseClause &&
-              choice.elseFrameType != FrameType.normal &&
-              !ifConditionResult) {
-            final frame = TestFrame(frames.length + 1);
+          } else if (!ifResult &&
+              choice.hasElseClause &&
+              choice.elseFrameType != FrameType.normal) {
+            final frame = TestFrame(frameCounter++);
             frame.setSingleFrame(
               category,
               choice,
@@ -118,50 +106,33 @@ class FrameGenerator {
     }
   }
 
-  /// Recursively generates normal test frames by making combinations of choices.
-  ///
-  /// [depth] is the current category index being processed.
-  /// [selectedChoices] is a map of selected choices for each category so far.
-  /// [alteredProperties] is a map tracking properties that have been altered to true.
-  void _generateNormalFrames(
-    int depth,
-    Map<Category, Choice?> selectedChoices,
-    Map<String, Property> alteredProperties,
-  ) {
-    // Base case: we've gone through all categories, so write the frame
-    if (depth >= categories.length) {
-      final frame = TestFrame(frames.length + 1);
-
-      // Build the key string
-      final keyParts = <String>[];
-
-      for (int i = 0; i < categories.length; i++) {
-        final category = categories[i];
-        final choice = selectedChoices[category];
-
-        if (choice != null) {
-          final choiceIndex = category.choices.indexOf(choice) + 1;
-          keyParts.add('$choiceIndex');
-        } else {
-          keyParts.add('0');
+  /// Pre-processes properties to their default values.
+  void _preProcessProperties() {
+    for (final category in categories) {
+      for (final choice in category.choices) {
+        if (!choice.hasIfExpression) {
+          // Set properties for non-conditional choices
+          for (final property in choice.properties) {
+            property.value = true;
+          }
         }
-
-        frame.addCategoryAndChoice(category, choice);
       }
+    }
+  }
 
-      frame.setKey(keyParts.join('.'));
-      frames.add(frame);
-
-      // Reset altered properties
-      for (final property in alteredProperties.values) {
-        property.value = false;
-      }
-
+  /// Recursively generates normal test frames.
+  ///
+  /// [choices] is an array of selected choices for each category.
+  /// [catIndex] is the current category index being processed.
+  void _generateNormalFrames(List<Choice> choices, int catIndex) {
+    if (catIndex >= categories.length) {
+      // We've selected choices for all categories, create a test frame
+      _createNormalFrame(choices);
       return;
     }
 
-    final category = categories[depth];
-    bool madeSelection = false;
+    final category = categories[catIndex];
+    bool selectionMade = false;
 
     // Try each choice in the current category
     for (final choice in category.choices) {
@@ -170,71 +141,118 @@ class FrameGenerator {
         continue;
       }
 
-      final localAlteredProperties = <String, Property>{};
+      // Store the state of all properties before setting new ones
+      final propertyStates = <String, bool>{};
+      for (final category in categories) {
+        for (final c in category.choices) {
+          for (final property in c.properties) {
+            propertyStates[property.name] = property.value;
+          }
+          for (final property in c.ifProperties) {
+            propertyStates[property.name] = property.value;
+          }
+          for (final property in c.elseProperties) {
+            propertyStates[property.name] = property.value;
+          }
+        }
+      }
+
+      bool includeChoice = true;
 
       if (choice.hasIfExpression) {
-        if (choice.ifExpression!.evaluate()) {
-          if (choice.ifFrameType != FrameType.normal) {
-            continue; // Skip choices with single/error frames in the if branch
-          }
+        final ifResult = choice.ifExpression!.evaluate();
 
-          // Set properties for the if branch
-          for (final property in choice.ifProperties) {
-            if (!property.value) {
+        if (ifResult) {
+          // If branch is taken
+          if (choice.ifFrameType != FrameType.normal) {
+            // Skip choices with single/error frames in the if branch
+            includeChoice = false;
+          } else {
+            // Set properties from the if branch
+            for (final property in choice.ifProperties) {
               property.value = true;
-              localAlteredProperties[property.name] = property;
             }
           }
         } else if (choice.hasElseClause) {
+          // Else branch is taken
           if (choice.elseFrameType != FrameType.normal) {
-            continue; // Skip choices with single/error frames in the else branch
-          }
-
-          // Set properties for the else branch
-          for (final property in choice.elseProperties) {
-            if (!property.value) {
+            // Skip choices with single/error frames in the else branch
+            includeChoice = false;
+          } else {
+            // Set properties from the else branch
+            for (final property in choice.elseProperties) {
               property.value = true;
-              localAlteredProperties[property.name] = property;
             }
           }
         } else {
-          continue; // Skip choices where the if condition is false and there's no else
+          // No else branch and if condition is false, skip this choice
+          includeChoice = false;
         }
       } else {
-        // Set normal properties
+        // Regular choice, set properties
         for (final property in choice.properties) {
-          if (!property.value) {
-            property.value = true;
-            localAlteredProperties[property.name] = property;
+          property.value = true;
+        }
+      }
+
+      if (includeChoice) {
+        selectionMade = true;
+        choices[catIndex] = choice;
+
+        // Recursive call to process the next category
+        _generateNormalFrames(choices, catIndex + 1);
+      }
+
+      // Restore property values
+      for (final category in categories) {
+        for (final c in category.choices) {
+          for (final property in c.properties) {
+            property.value = propertyStates[property.name] ?? false;
+          }
+          for (final property in c.ifProperties) {
+            property.value = propertyStates[property.name] ?? false;
+          }
+          for (final property in c.elseProperties) {
+            property.value = propertyStates[property.name] ?? false;
           }
         }
       }
+    }
 
-      madeSelection = true;
-      selectedChoices[category] = choice;
+    // If no choice could be made, proceed with a null choice
+    if (!selectionMade) {
+      choices[catIndex] = Choice('EMPTY');
+      _generateNormalFrames(choices, catIndex + 1);
+    }
+  }
 
-      // Add local altered properties to the master list
-      alteredProperties.addAll(localAlteredProperties);
+  /// Creates a normal test frame from the given [choices].
+  void _createNormalFrame(List<Choice> choices) {
+    final frame = TestFrame(frameCounter++);
 
-      // Recursive call to process the next category
-      _generateNormalFrames(depth + 1, selectedChoices, alteredProperties);
+    // Build the key string
+    final keyParts = <String>[];
 
-      // Remove local altered properties from the master list and reset them
-      for (final property in localAlteredProperties.values) {
-        property.value = false;
-        alteredProperties.remove(property.name);
+    for (int i = 0; i < categories.length; i++) {
+      final category = categories[i];
+      final choice = choices[i];
+
+      frame.addCategoryAndChoice(
+        category,
+        choice.name == 'EMPTY' ? null : choice,
+      );
+
+      // For key, we need the index of the choice within its category
+      if (choice.name == 'EMPTY') {
+        keyParts.add('0');
+      } else {
+        final choiceIndex = category.choices.indexOf(choice) + 1;
+        keyParts.add('$choiceIndex');
       }
-
-      // Remove this choice from selected choices
-      selectedChoices.remove(category);
     }
 
-    // If we couldn't select any choice from this category, proceed with no selection
-    if (!madeSelection) {
-      selectedChoices[category] = null;
-      _generateNormalFrames(depth + 1, selectedChoices, alteredProperties);
-      selectedChoices.remove(category);
-    }
+    frame.setKey(keyParts.join('.'));
+    frames.add(frame);
   }
 
   /// Returns a string representation of all generated test frames.

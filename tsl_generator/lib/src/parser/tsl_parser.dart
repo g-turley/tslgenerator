@@ -36,9 +36,9 @@ class TslParser {
   /// The maximum category name length, used for formatting output.
   int maxCategoryNameLength = 0;
 
-  /// Creates a `Property` with the given [name] and adds it to the properties map
-  /// if it doesn't already exist.
-  Property getOrCreateProperty(String name) {
+  /// Creates a `Property` with the given [name] and adds it to the properties map.
+  /// Should only be called for defining new properties.
+  Property createProperty(String name) {
     final normalizedName = name.trim();
     if (normalizedName.isEmpty) {
       throw TslParserException('Property name cannot be empty');
@@ -58,6 +58,16 @@ class TslParser {
       properties[normalizedName] = property;
       return property;
     }
+  }
+
+  /// Gets an existing `Property` with the given [name].
+  /// Throws an exception if the property does not exist.
+  Property getProperty(String name) {
+    final normalizedName = name.trim();
+    if (!properties.containsKey(normalizedName)) {
+      throw TslParserException('The property "$normalizedName" is not defined');
+    }
+    return properties[normalizedName]!;
   }
 
   /// Parses the input file and returns the list of categories.
@@ -119,7 +129,7 @@ class TslParser {
 
         // The choice name is everything before the last dot
         final choiceName =
-            (choiceParts.sublist(0, choiceParts.length - 1).join('.') + '.')
+            ('${choiceParts.sublist(0, choiceParts.length - 1).join('.')}.')
                 .trim();
         if (choiceName.isEmpty) {
           throw TslParserException(
@@ -195,11 +205,11 @@ class TslParser {
         final trimmedName = name.trim();
         if (trimmedName.isNotEmpty) {
           if (choice.hasElseClause) {
-            choice.addElseProperty(getOrCreateProperty(trimmedName));
+            choice.addElseProperty(createProperty(trimmedName));
           } else if (choice.hasIfExpression) {
-            choice.addIfProperty(getOrCreateProperty(trimmedName));
+            choice.addIfProperty(createProperty(trimmedName));
           } else {
-            choice.addProperty(getOrCreateProperty(trimmedName));
+            choice.addProperty(createProperty(trimmedName));
           }
         }
       }

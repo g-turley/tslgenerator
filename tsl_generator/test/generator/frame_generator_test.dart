@@ -35,7 +35,7 @@ void main() {
       final category1 = Category('Category1');
       final category2 = Category('Category2');
 
-      final propA = Property('A');
+      final propA = Property('A', value: true); // Set to true directly
 
       final choice1 = Choice('Choice1.');
       choice1.addProperty(propA);

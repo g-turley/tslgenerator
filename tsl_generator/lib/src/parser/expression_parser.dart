@@ -86,8 +86,8 @@ class ExpressionParser {
       return Expression(notA: notA, exprA: parsedExpr, propB: _falseProperty);
     }
 
-    // Simple property
-    final property = tslParser.getOrCreateProperty(text);
+    // Simple property - must already be defined
+    final property = tslParser.getProperty(text);
 
     return Expression(notA: notA, propA: property, propB: _falseProperty);
   }
