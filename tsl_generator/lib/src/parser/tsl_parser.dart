@@ -370,17 +370,66 @@ class TslParser {
     final constraintPattern = RegExp(r'\[(.*?)\]');
     final matches = constraintPattern.allMatches(constraintText);
 
+    // If no valid constraints found but text exists after the period
     if (matches.isEmpty && constraintText.isNotEmpty) {
-      throw TslError.fromLine(
-        message: 'Invalid constraint format',
-        type: TslErrorType.syntax,
-        file: inputFile,
-        lineNumber: lineNumber,
-        spanStart: periodIndex + 1,
-        spanEnd: line.length,
-        suggestion:
-            'Constraints must be enclosed in square brackets, e.g., [property Name]',
-      );
+      // Check if there's any non-whitespace text
+      if (constraintText.trim().isNotEmpty) {
+        throw TslError.fromLine(
+          message:
+              'Found text not enclosed in brackets: "${constraintText.trim()}"',
+          type: TslErrorType.syntax,
+          file: inputFile,
+          lineNumber: lineNumber,
+          spanStart: periodIndex + 1,
+          spanEnd: line.length,
+          suggestion:
+              'All constraints must be enclosed in square brackets, e.g., [property Name], [single], [error], etc.',
+        );
+      }
+    }
+
+    // Check between and after matched constraints for unbracketed text
+    if (matches.isNotEmpty) {
+      int lastEnd = 0;
+      for (final match in matches) {
+        final start = match.start;
+
+        // Check text between previous constraint and this one
+        if (start > lastEnd) {
+          final betweenText = constraintText.substring(lastEnd, start).trim();
+          if (betweenText.isNotEmpty) {
+            throw TslError.fromLine(
+              message: 'Found text not enclosed in brackets: "$betweenText"',
+              type: TslErrorType.syntax,
+              file: inputFile,
+              lineNumber: lineNumber,
+              spanStart: periodIndex + 1 + lastEnd,
+              spanEnd: periodIndex + 1 + start,
+              suggestion:
+                  'All constraints must be enclosed in square brackets, e.g., [property Name], [single], [error], etc.',
+            );
+          }
+        }
+
+        lastEnd = match.end;
+      }
+
+      // Check if there's any text after the last constraint
+      if (lastEnd < constraintText.length) {
+        final afterText = constraintText.substring(lastEnd).trim();
+        if (afterText.isNotEmpty) {
+          throw TslError.fromLine(
+            message: 'Found text not enclosed in brackets: "$afterText"',
+            type: TslErrorType.syntax,
+            file: inputFile,
+            lineNumber: lineNumber,
+            spanStart: periodIndex + 1 + lastEnd,
+            spanEnd: periodIndex + 1 + constraintText.length,
+            suggestion:
+                'All constraints must be enclosed in square brackets, e.g., [property Name], [single], [error], etc.',
+          );
+        }
+      }
     }
 
     for (final match in matches) {
