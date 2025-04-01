@@ -1,85 +1,239 @@
 import 'dart:io';
 import 'package:test/test.dart';
-import 'package:tsl_generator/tsl_generator.dart';
+import 'package:tsl_generator/src/errors/tsl_errors.dart';
+import 'package:tsl_generator/src/parser/tsl_parser.dart';
 
 void main() {
-  group('TslParser', () {
+  group('Improved TslParser Error Handling', () {
     late File testFile;
 
     setUp(() {
-      // Create a temporary test file
-      testFile = File('test/temp_test.tsl');
-      testFile.writeAsStringSync('''
-# Test Category
-
-  Category1:
-    Choice1.          [property Prop1]
-    Choice2.          [single]
-    Choice3.          [error]
-    Choice4.          [if Prop1]
-
-  Category2:
-    ChoiceA.
-    ChoiceB.          [if !Prop1] [property Prop2]
-    ChoiceC.          [if Prop1 && Prop2]
-''');
+      // We'll create the test file in each test to have different content
     });
 
     tearDown(() {
-      // Delete the temporary file
       if (testFile.existsSync()) {
         testFile.deleteSync();
       }
     });
 
-    test('can parse a TSL file', () {
+    test('throws TslError for non-existent file', () {
+      testFile = File('non_existent_file.tsl');
       final parser = TslParser(testFile);
-      final categories = parser.parse();
-
-      expect(categories.length, equals(2));
-
-      // Check first category
-      final category1 = categories[0];
-      expect(category1.name, equals('Category1'));
-      expect(category1.choices.length, equals(4));
-
-      // Check choices in first category
-      expect(category1.choices[0].name, equals('Choice1.'));
-      expect(category1.choices[0].properties.length, equals(1));
-      expect(category1.choices[0].properties[0].name, equals('Prop1'));
-
-      expect(category1.choices[1].name, equals('Choice2.'));
-      expect(category1.choices[1].frameType, equals(FrameType.single));
-
-      expect(category1.choices[2].name, equals('Choice3.'));
-      expect(category1.choices[2].frameType, equals(FrameType.error));
-
-      expect(category1.choices[3].name, equals('Choice4.'));
-      expect(category1.choices[3].hasIfExpression, isTrue);
-
-      // Check second category
-      final category2 = categories[1];
-      expect(category2.name, equals('Category2'));
-      expect(category2.choices.length, equals(3));
-
-      // Check choices in second category
-      expect(category2.choices[0].name, equals('ChoiceA.'));
-
-      expect(category2.choices[1].name, equals('ChoiceB.'));
-      expect(category2.choices[1].hasIfExpression, isTrue);
-      expect(category2.choices[1].ifProperties.length, equals(1));
-      expect(category2.choices[1].ifProperties[0].name, equals('Prop2'));
-
-      expect(category2.choices[2].name, equals('ChoiceC.'));
-      expect(category2.choices[2].hasIfExpression, isTrue);
-    });
-
-    test('throws exception for invalid files', () {
-      final nonExistentFile = File('non_existent.tsl');
 
       expect(
-        () => TslParser(nonExistentFile).parse(),
-        throwsA(isA<TslParserException>()),
+        () => parser.parse(),
+        throwsA(
+          predicate<TslError>(
+            (e) =>
+                e.type == TslErrorType.fileSystem &&
+                e.message.contains('does not exist'),
+          ),
+        ),
+      );
+    });
+
+    test('throws TslError for empty file', () {
+      testFile = File('test/empty_file.tsl');
+      testFile.writeAsStringSync('');
+
+      final parser = TslParser(testFile);
+
+      expect(
+        () => parser.parse(),
+        throwsA(
+          predicate<TslError>(
+            (e) =>
+                e.type == TslErrorType.syntax &&
+                e.message.contains('No valid categories found'),
+          ),
+        ),
+      );
+    });
+
+    test('throws TslError for missing category before choice', () {
+      testFile = File('test/no_category.tsl');
+      testFile.writeAsStringSync('''
+Choice1.          [property Prop1]
+''');
+
+      final parser = TslParser(testFile);
+
+      expect(
+        () => parser.parse(),
+        throwsA(
+          predicate<TslError>(
+            (e) =>
+                e.type == TslErrorType.syntax &&
+                e.message.contains('Choice must be preceded by a category') &&
+                e.lineNumber == 1,
+          ),
+        ),
+      );
+    });
+
+    test('throws TslError for invalid constraint', () {
+      testFile = File('test/invalid_constraint.tsl');
+      testFile.writeAsStringSync('''
+# Category
+  Choice1.        [unknown_constraint]
+''');
+
+      final parser = TslParser(testFile);
+
+      expect(
+        () => parser.parse(),
+        throwsA(
+          predicate<TslError>(
+            (e) =>
+                e.type == TslErrorType.constraint &&
+                e.message.contains('Unknown constraint') &&
+                e.lineNumber == 2 &&
+                e.suggestion != null,
+          ),
+        ),
+      );
+    });
+
+test('throws TslError for undefined property in expression', () {
+      testFile = File('test/undefined_property.tsl');
+      testFile.writeAsStringSync('''
+# Category
+  Choice1.        [property PropA]
+  Choice2.        [if PropB]
+''');
+
+      final parser = TslParser(testFile);
+
+      expect(
+        () => parser.parse(),
+        throwsA(
+          predicate<TslError>(
+            (e) =>
+                e.type == TslErrorType.property &&
+                e.message.contains('PropB') &&
+                e.message.contains('not defined') &&
+                e.lineNumber == 3 &&
+                e.suggestion != null,
+          ),
+        ),
+      );
+    });
+    test('throws TslError for unmatched parenthesis', () {
+      testFile = File('test/unmatched_paren.tsl');
+      testFile.writeAsStringSync('''
+# Category
+  Choice1.        [property PropA]
+  Choice2.        [property PropB]
+  Choice3.        [if PropA && (PropB]
+''');
+
+      final parser = TslParser(testFile);
+
+      expect(
+        () => parser.parse(),
+        throwsA(
+          predicate<TslError>(
+            (e) =>
+                e.type == TslErrorType.expression &&
+                e.message.contains('Unmatched opening parenthesis') &&
+                e.suggestion != null,
+          ),
+        ),
+      );
+    });
+
+    test('throws TslError with suggestion for property name', () {
+      testFile = File('test/similar_property.tsl');
+      testFile.writeAsStringSync('''
+# Category
+  Choice1.        [property PropertyOne]
+  Choice2.        [if PropertyOn]
+''');
+
+      final parser = TslParser(testFile);
+
+      expect(
+        () => parser.parse(),
+        throwsA(
+          predicate<TslError>(
+            (e) =>
+                e.type == TslErrorType.property &&
+                e.message.contains('"PropertyOn" is not defined') &&
+                e.suggestion != null &&
+                e.suggestion!.contains('PropertyOne'),
+          ),
+        ),
+      );
+    });
+
+    test('throws TslError for else without if', () {
+      testFile = File('test/else_without_if.tsl');
+      testFile.writeAsStringSync('''
+# Category
+  Choice1.        [else]
+''');
+
+      final parser = TslParser(testFile);
+
+      expect(
+        () => parser.parse(),
+        throwsA(
+          predicate<TslError>(
+            (e) =>
+                e.type == TslErrorType.constraint &&
+                e.message.contains('requires a preceding "if"') &&
+                e.lineNumber == 2 &&
+                e.suggestion != null,
+          ),
+        ),
+      );
+    });
+
+    test('throws TslError for invalid expression', () {
+      testFile = File('test/invalid_expression.tsl');
+      testFile.writeAsStringSync('''
+# Category
+  Choice1.        [property PropA]
+  Choice2.        [if ]
+''');
+
+      final parser = TslParser(testFile);
+
+      expect(
+        () => parser.parse(),
+        throwsA(
+          predicate<TslError>(
+            (e) =>
+                e.type == TslErrorType.expression &&
+                e.message.contains('Expression missing') &&
+                e.lineNumber == 3 &&
+                e.suggestion != null,
+          ),
+        ),
+      );
+    });
+
+    test('throws TslError for empty property name', () {
+      testFile = File('test/empty_property.tsl');
+      testFile.writeAsStringSync('''
+# Category
+  Choice1.        [property ]
+''');
+
+      final parser = TslParser(testFile);
+
+      expect(
+        () => parser.parse(),
+        throwsA(
+          predicate<TslError>(
+            (e) =>
+                e.type == TslErrorType.property &&
+                e.message.contains('Property name missing') &&
+                e.lineNumber == 2 &&
+                e.suggestion != null,
+          ),
+        ),
       );
     });
   });

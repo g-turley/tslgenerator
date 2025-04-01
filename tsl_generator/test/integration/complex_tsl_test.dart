@@ -1,5 +1,6 @@
 import 'dart:io';
 import 'package:test/test.dart';
+import 'package:tsl_generator/src/errors/tsl_errors.dart';
 import 'package:tsl_generator/tsl_generator.dart';
 
 void main() {
@@ -332,7 +333,7 @@ void main() {
 
     try {
       final parser = TslParser(invalidTslFile);
-      expect(() => parser.parse(), throwsA(isA<TslParserException>()));
+      expect(() => parser.parse(), throwsA(isA<TslError>()));
     } finally {
       if (invalidTslFile.existsSync()) {
         invalidTslFile.deleteSync();
