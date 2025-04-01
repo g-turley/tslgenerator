@@ -1,0 +1,12 @@
+# FILTERING OPTIONS
+Keep Lines Option:
+       Set. [property keepLinesOption]
+       Unset.
+Exclude Lines Option:
+       Set. [property excludeLinesOption]
+       Unset.
+
+# CASE OPTION
+Case Insensitive Option:
+        Set. [if !(excludeLinesOption || keepLinesOption)][error][else]
+        Unset. [property noCaseInsensitiveOption]

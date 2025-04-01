@@ -116,6 +116,9 @@ class TslCli {
       } else {
         // When additional arguments are provided, simply output the stats.
         _printSuccess('\n${result.toSummaryString()}');
+        if (outputFilePath != null) {
+          await _writeOutput(result.toFramesString());
+        }
       }
     } catch (e) {
       if (e is TslError) {
@@ -191,11 +194,17 @@ class TslCli {
 
   /// Print the banner.
   void _printBanner() {
+    // Define the ASCII art using a raw string literal.
+    final asciiArt = r'''
+ _____  ___  __
+/_  _/,' _/ / /   Test Specification Language 
+ / / _\ `. / /_   Generator
+/_/ /___,'/___/   
+''';
+
+    // Apply colorization (bold and cyan) to the ASCII art.
     final banner = '''
-${_colorize(_boldText, '----------------------------------------')}
-${_colorize(_boldText + _cyanColor, '  TSL Generator')}
-${_colorize(_boldText + _cyanColor, '  Test Specification Language Generator')}
-${_colorize(_boldText, '----------------------------------------')}
+${_colorize(_boldText + _cyanColor, asciiArt)}
 ''';
 
     print(banner);

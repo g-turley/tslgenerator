@@ -264,7 +264,7 @@ class TslParser {
 
           // Add to categories list
           categories.add(currentCategory);
-        } else if (line.contains('.')) {
+        } else {
           // It's a choice
           if (currentCategory == null) {
             throw TslError.fromLine(
@@ -273,11 +273,11 @@ class TslParser {
               file: inputFile,
               lineNumber: lineNumber,
               suggestion:
-                  'Add a category header (# CategoryName) before this choice',
+                  'Add a category header (CategoryName:) before this choice',
             );
           }
 
-          _parseChoiceLine(line, currentCategory, lineNumber);
+          _parseChoiceLine(lines[i], currentCategory, lineNumber);
         }
       }
 
@@ -335,13 +335,14 @@ class TslParser {
     }
 
     // The choice name is everything before the dot
-    final choiceName = line.substring(0, periodIndex + 1).trim();
+    final choiceName = line.substring(0, periodIndex).trim();
     if (choiceName.isEmpty) {
       throw TslError.fromLine(
         message: 'Choice name cannot be empty',
         type: TslErrorType.syntax,
         file: inputFile,
         lineNumber: lineNumber,
+        columnNumber: line.substring(0, periodIndex + 1).length,
         suggestion: 'Provide a name for this choice',
       );
     }

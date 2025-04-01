@@ -62,10 +62,10 @@ void main() {
     test('creates error with line information from file', () {
       // Create a temporary test file
       final tempFile = File('test/temp_error_test.tsl');
-      tempFile.writeAsStringSync('''Line 1
-Line 2 with some text
-Line 3 with an error here
-Line 4 is okay''');
+      tempFile.writeAsStringSync('''
+# Test TSL File
+Category:
+  Choice1. [property ]''');
 
       try {
         // Test error creation from file line
@@ -78,7 +78,7 @@ Line 4 is okay''');
           suggestion: 'Fix the error',
         );
 
-        expect(error.lineContent, equals('Line 3 with an error here'));
+        expect(error.lineContent, equals('  Choice1. [property ]'));
         expect(error.errorSpan, equals('              ^'));
 
         // Test with span
@@ -92,7 +92,7 @@ Line 4 is okay''');
           suggestion: 'Fix the span',
         );
 
-        expect(spanError.lineContent, equals('Line 3 with an error here'));
+        expect(spanError.lineContent, equals('  Choice1. [property ]'));
         expect(spanError.errorSpan, equals('          ^^^^^'));
       } finally {
         // Clean up

@@ -155,14 +155,15 @@ class ExpressionParser {
 
     bool notA = false;
     int textColumnOffset = columnOffset ?? 0;
+    String? exclamationTrimmedText;
 
     // Check for negation
     if (text.startsWith('!')) {
       notA = true;
-      text = text.substring(1).trim();
+      exclamationTrimmedText = text.substring(1).trim();
       textColumnOffset += 1; // Move past the ! character
 
-      if (text.isEmpty) {
+      if (exclamationTrimmedText.isEmpty) {
         throw TslError(
           message: 'Missing operand after negation (!)',
           type: TslErrorType.expression,
@@ -176,7 +177,11 @@ class ExpressionParser {
     }
 
     // Check for parenthesized expression
-    if (text.startsWith('(') && text.endsWith(')')) {
+    if ((text.startsWith('(') || (exclamationTrimmedText?.startsWith('(') ?? false)) && text.endsWith(')')) {
+      // We had a leading negation, so now can commit to it.
+      if (exclamationTrimmedText != null) {
+        text = exclamationTrimmedText;
+      }
       // Strip the parentheses and parse the inner expression
       final innerExpr = text.substring(1, text.length - 1).trim();
       if (innerExpr.isEmpty) {
@@ -209,18 +214,18 @@ class ExpressionParser {
         columnOffset: textColumnOffset,
       );
 
-      return Expression(notA: notA, exprA: parsedExpr, propB: _falseProperty);
+      return Expression(notA: false, exprA: parsedExpr, propB: _falseProperty);
     }
 
     // Simple property - must already be defined
     try {
       final property = tslParser.getProperty(
-        text,
+        exclamationTrimmedText ?? text,
         lineNumber: lineNumber,
         columnNumber: textColumnOffset,
       );
 
-      return Expression(notA: notA, propA: property, propB: _falseProperty);
+      return Expression(notA: exclamationTrimmedText != null, propA: property, propB: _falseProperty);
     } catch (e) {
       if (e is TslError) {
         // Add extra suggestions for the property error
@@ -232,7 +237,8 @@ class ExpressionParser {
           columnNumber: e.columnNumber,
           lineContent: e.lineContent,
           errorSpan: e.errorSpan,
-          suggestion: e.suggestion ??
+          suggestion:
+              e.suggestion ??
               'Define the property "$text" using [property $text] before using it in an expression',
         );
       }

@@ -81,7 +81,7 @@ class FrameGenerator {
   void _generateSingleFrames() {
     for (final category in categories) {
       for (final choice in category.choices) {
-        // Regular single/error frames
+        // Regular single/error frames without conditions
         if (choice.frameType != FrameType.normal) {
           final frame = TestFrame(frameCounter++);
           frame.setSingleFrame(category, choice, choice.frameType);
@@ -90,12 +90,13 @@ class FrameGenerator {
 
         // If-based single/error frames
         if (choice.hasIfExpression) {
+          // We need to reset and pre-process properties for each evaluation
+          // to ensure a clean state for expression evaluation
           _resetAllProperties();
-          _preProcessProperties();
 
-          final ifResult = choice.ifExpression!.evaluate();
-
-          if (ifResult && choice.ifFrameType != FrameType.normal) {
+          // Handle if branch (when expression is true)
+          if (choice.ifExpression != null &&
+              choice.ifFrameType != FrameType.normal) {
             final frame = TestFrame(frameCounter++);
             frame.setSingleFrame(
               category,
@@ -104,8 +105,8 @@ class FrameGenerator {
               branchType: 'if',
             );
             frames.add(frame);
-          } else if (!ifResult &&
-              choice.hasElseClause &&
+          }
+          if (choice.hasElseClause &&
               choice.elseFrameType != FrameType.normal) {
             final frame = TestFrame(frameCounter++);
             frame.setSingleFrame(
@@ -175,6 +176,7 @@ class FrameGenerator {
       bool includeChoice = true;
 
       if (choice.hasIfExpression) {
+        // Evaluate the if expression with current property values
         final ifResult = choice.ifExpression!.evaluate();
 
         if (ifResult) {

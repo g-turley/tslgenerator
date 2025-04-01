@@ -82,7 +82,7 @@ class TslError implements Exception {
       if (lineNumber > 0 && lineNumber <= lines.length) {
         lineContent = lines[lineNumber - 1];
 
-        if (columnNumber != null && spanStart != null && spanEnd != null) {
+        if (spanStart != null && spanEnd != null) {
           final start = max(0, spanStart);
           final end = min(lineContent.length, spanEnd);
 

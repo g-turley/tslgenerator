@@ -1,0 +1,6 @@
+# Setup Properties
+  Test:
+    PropA.          [property A]
+    PropB.          [property B]
+    PropC.          [property C]
+    PropD.          [property D]

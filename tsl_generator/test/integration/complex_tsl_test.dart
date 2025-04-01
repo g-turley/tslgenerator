@@ -9,6 +9,7 @@ void main() {
   late File complexTslFile2;
   late File complexTslFile3;
   late File complexTslFile4;
+  late File testFile;
 
   setUp(() {
     simpleTslFile1 = File('test/1_simple_sample.tsl');
@@ -200,6 +201,16 @@ void main() {
       Not present.		[error]
       Present.
 ''');
+
+    testFile = File('test/expression_test.tsl');
+    testFile.writeAsStringSync('''
+# Setup Properties
+  Test:
+    PropA.          [property A]
+    PropB.          [property B]
+    PropC.          [property C]
+    PropD.          [property D]
+''');
   });
 
   tearDown(() {
@@ -218,6 +229,9 @@ void main() {
     if (complexTslFile4.existsSync()) {
       complexTslFile4.deleteSync();
     }
+    if (testFile.existsSync()) {
+      testFile.deleteSync();
+    }
   });
 
   test('Generates exact 16 frames for simple TSL example 1', () {
@@ -229,9 +243,7 @@ void main() {
 
     // Debug output
     print('Total frames: ${frames.totalFrames}');
-    print(
-      'Single/error frames: ${frames.singleFrames + frames.errorFrames}',
-    );
+    print('Single/error frames: ${frames.singleFrames + frames.errorFrames}');
 
     expect(
       frames.totalFrames,
@@ -249,9 +261,7 @@ void main() {
 
     // Debug output
     print('Total frames: ${frames.totalFrames}');
-    print(
-      'Single/error frames: ${frames.singleFrames + frames.errorFrames}',
-    );
+    print('Single/error frames: ${frames.singleFrames + frames.errorFrames}');
 
     expect(
       frames.totalFrames,
@@ -269,9 +279,7 @@ void main() {
 
     // Debug output
     print('Total frames: ${frames.totalFrames}');
-    print(
-      'Single/error frames: ${frames.singleFrames + frames.errorFrames}',
-    );
+    print('Single/error frames: ${frames.singleFrames + frames.errorFrames}');
 
     expect(
       frames.totalFrames,
@@ -288,9 +296,7 @@ void main() {
 
     // Debug output
     print('Total frames: ${frames.totalFrames}');
-    print(
-      'Single/error frames: ${frames.singleFrames + frames.errorFrames}',
-    );
+    print('Single/error frames: ${frames.singleFrames + frames.errorFrames}');
 
     expect(
       frames.totalFrames,
@@ -308,9 +314,7 @@ void main() {
 
     // Debug output
     print('Total frames: ${frames.totalFrames}');
-    print(
-      'Single/error frames: ${frames.singleFrames + frames.errorFrames}',
-    );
+    print('Single/error frames: ${frames.singleFrames + frames.errorFrames}');
 
     expect(
       frames.totalFrames,
