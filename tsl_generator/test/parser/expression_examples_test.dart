@@ -261,7 +261,7 @@ Second Category:
       // Find the frame for Case Insensitive
       final caseInsensitiveFrame = errorFrames.firstWhere(
         (frame) => frame.categoriesAndChoices.values.any(
-          (choice) => choice?.name == 'Case Insensitive.',
+          (choice) => choice?.name == 'Case Insensitive',
         ),
         orElse: () => TestFrame(0), // Dummy frame that will fail the test
       );
