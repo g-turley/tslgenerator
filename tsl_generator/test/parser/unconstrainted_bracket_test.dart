@@ -16,7 +16,7 @@ void main() {
     test('detects unbracketed "error" constraint', () {
       testFile = File('test/unbracketed_error.tsl');
       testFile.writeAsStringSync('''
-# Category
+Category:
   Choice1. [if !(x || y)] error [else]
 ''');
 
@@ -43,7 +43,7 @@ void main() {
     test('detects unbracketed "single" constraint', () {
       testFile = File('test/unbracketed_single.tsl');
       testFile.writeAsStringSync('''
-# Category
+Category:
   Choice1. [property A] single [property B]
 ''');
 
@@ -70,7 +70,7 @@ void main() {
     test('detects unbracketed "if" constraint', () {
       testFile = File('test/unbracketed_if.tsl');
       testFile.writeAsStringSync('''
-# Category
+Category:
   Choice1. if A && B [property C]
 ''');
 
@@ -97,7 +97,7 @@ void main() {
     test('detects unbracketed "else" constraint', () {
       testFile = File('test/unbracketed_else.tsl');
       testFile.writeAsStringSync('''
-# Category
+Category:
   Choice1. [if A] [property B] else
 ''');
 
@@ -124,7 +124,7 @@ void main() {
     test('detects unbracketed "property" constraint', () {
       testFile = File('test/unbracketed_property.tsl');
       testFile.writeAsStringSync('''
-# Category
+Category:
   Choice1. property A [if B]
 ''');
 
@@ -151,7 +151,7 @@ void main() {
     test('detects random text between constraints', () {
       testFile = File('test/random_text.tsl');
       testFile.writeAsStringSync('''
-# Category
+Category:
   Choice1. [if A] some random text [property B]
 ''');
 
@@ -178,7 +178,7 @@ void main() {
     test('detects random text after constraints', () {
       testFile = File('test/after_text.tsl');
       testFile.writeAsStringSync('''
-# Category
+Category:
   Choice1. [if A] [property B] some trailing text
 ''');
 

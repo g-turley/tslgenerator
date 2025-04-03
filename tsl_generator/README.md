@@ -109,13 +109,13 @@ Options:
 TSL files define categories, choices, and constraints in a hierarchical format:
 
 ```
-# Category1
+Category1:
   Choice1.           [property PropertyName]
   Choice2.           [single]
   Choice3.           [error]
   Choice4.           [if PropertyName]
 
-# Category2
+Category2:
   ChoiceA.
   ChoiceB.           [if !PropertyName] [property PropertyName2]
   ChoiceC.           [if PropertyName && PropertyName2]

@@ -62,18 +62,17 @@ class TslSpecification {
   /// This method is useful for testing or when the TSL content
   /// is available as a string rather than a file.
   factory TslSpecification.fromString(String content) {
-    // Create a temporary file
-    final tempDir = Directory.systemTemp.createTempSync('tsl_generator_');
-    final tempFile = File('${tempDir.path}/temp.tsl');
-    tempFile.writeAsStringSync(content);
+    final parser = TslParser(content);
+    final categories = parser.parse();
+    final spec = TslSpecification();
 
-    try {
-      return TslSpecification.fromTslFile(tempFile);
-    } finally {
-      // Clean up
-      tempFile.deleteSync();
-      tempDir.deleteSync();
-    }
+    // Add categories from parser
+    spec.categories.addAll(categories);
+
+    // Add properties from parser
+    spec._properties.addAll(parser.properties);
+
+    return spec;
   }
 
   /// All categories in this specification.

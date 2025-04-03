@@ -7,18 +7,114 @@ import '../models/choice.dart';
 import '../models/property.dart';
 import 'expression_parser.dart';
 
-/// Class for parsing Test Specification Language files.
+/// Class for parsing Test Specification Language files or strings.
 class TslParser {
-  /// Creates a parser for the given [inputFile].
-  TslParser(this.inputFile);
+  /// Creates a parser for the given [input].
+  /// 
+  /// The input can be either a [File] object or a [String].
+  TslParser(Object input) {
+    if (input is File) {
+      _inputFile = input;
+      _isFileSource = true;
+    } else if (input is String) {
+      _inputString = input;
+      _isFileSource = false;
+    } else {
+      throw ArgumentError('Input must be either a File or a String');
+    }
+  }
 
-  /// The file to parse.
-  final File inputFile;
+  /// The source type of the input.
+  late bool _isFileSource;
+  
+  /// The file to parse (when source is a file).
+  File? _inputFile;
+  
+  /// The string content to parse (when source is a string).
+  String? _inputString;
+  
+  /// Returns the source path for error reporting.
+  String get sourcePath => _isFileSource 
+    ? _inputFile!.path 
+    : "(from string)";
+    
+  /// Returns the file path for external access.
+  /// This is used by expression parser to generate error messages.
+  String get filePath => sourcePath;
+    
+  /// Helper method to create a TslError.fromLine with the appropriate source info
+  TslError createErrorFromLine({
+    required String message,
+    required TslErrorType type,
+    required int lineNumber,
+    int? columnNumber,
+    String? suggestion,
+    int? spanStart,
+    int? spanEnd,
+  }) {
+    if (_isFileSource) {
+      return TslError.fromLine(
+        message: message,
+        type: type,
+        file: _inputFile!,
+        lineNumber: lineNumber,
+        columnNumber: columnNumber,
+        suggestion: suggestion,
+        spanStart: spanStart,
+        spanEnd: spanEnd,
+      );
+    } else {
+      return TslError.fromLine(
+        message: message,
+        type: type,
+        filePath: sourcePath,
+        lineMap: _lineMap,
+        lineNumber: lineNumber,
+        columnNumber: columnNumber,
+        suggestion: suggestion,
+        spanStart: spanStart,
+        spanEnd: spanEnd,
+      );
+    }
+  }
 
-  /// All categories parsed from the file.
+  /// Helper method for creating expression errors with appropriate source info
+  TslError createExpressionError({
+    required String expression,
+    required String details,
+    int? lineNumber,
+    int? columnNumber,
+    String? suggestion,
+  }) {
+    if (_isFileSource) {
+      return TslError.expressionError(
+        expression: expression,
+        details: details,
+        file: _inputFile,
+        lineNumber: lineNumber,
+        columnNumber: columnNumber,
+        suggestion: suggestion,
+      );
+    } else {
+      // No direct way to use lineMap with expressionError, 
+      // so we'll create a standard error
+      final message = 'Error in expression "$expression": $details';
+      return TslError(
+        message: message,
+        type: TslErrorType.expression,
+        filePath: sourcePath,
+        lineNumber: lineNumber,
+        columnNumber: columnNumber,
+        lineContent: lineNumber != null ? _lineMap[lineNumber] : null,
+        suggestion: suggestion,
+      );
+    }
+  }
+
+  /// All categories parsed from the input.
   final List<Category> categories = [];
 
-  /// All properties parsed from the file.
+  /// All properties parsed from the input.
   final Map<String, Property> properties = {};
 
   /// The maximum category name length, used for formatting output.
@@ -26,6 +122,12 @@ class TslParser {
 
   /// Maps line numbers to their content for error reporting.
   final Map<int, String> _lineMap = {};
+  
+  /// The current category being processed.
+  Category? _currentCategory;
+
+  /// The current choice being processed.
+  Choice? _currentChoice;
 
   /// Creates a `Property` with the given [name] and adds it to the properties map.
   /// Should only be called for defining new properties.
@@ -35,7 +137,7 @@ class TslParser {
       throw TslError(
         message: 'Property name cannot be empty',
         type: TslErrorType.property,
-        filePath: inputFile.path,
+        filePath: sourcePath,
         lineNumber: lineNumber,
         suggestion: 'Provide a non-empty name for this property',
       );
@@ -46,7 +148,7 @@ class TslParser {
         message:
             'Property name "$normalizedName" exceeds maximum length of ${TslConstants.maxPropertyNameLength} characters',
         type: TslErrorType.property,
-        filePath: inputFile.path,
+        filePath: sourcePath,
         lineNumber: lineNumber,
         suggestion:
             'Use a shorter name (maximum ${TslConstants.maxPropertyNameLength} characters)',
@@ -86,7 +188,7 @@ class TslParser {
       throw TslError(
         message: 'The property "$normalizedName" is not defined',
         type: TslErrorType.property,
-        filePath: inputFile.path,
+        filePath: sourcePath,
         lineNumber: lineNumber,
         columnNumber: columnNumber,
         lineContent: lineNumber != null ? _lineMap[lineNumber] : null,
@@ -166,119 +268,73 @@ class TslParser {
         (positionMatches / maxLength * 0.5);
   }
 
-  /// Parses the input file and returns the list of categories.
-  List<Category> parse() {
-    if (!inputFile.existsSync()) {
-      throw TslError(
-        message: 'Input file does not exist: ${inputFile.path}',
-        type: TslErrorType.fileSystem,
-        suggestion: 'Check that the file exists and the path is correct',
-      );
+  /// Handles comments within constraint lines
+  String _removeInlineComments(String line) {
+    // Find the position of the first # that isn't inside brackets
+    int pos = 0;
+    int bracketLevel = 0;
+    
+    while (pos < line.length) {
+      if (line[pos] == '[') {
+        bracketLevel++;
+      } else if (line[pos] == ']') {
+        bracketLevel--;
+      } else if (line[pos] == '#' && bracketLevel == 0) {
+        // Found a # outside of brackets - this is the start of a comment
+        return line.substring(0, pos).trim();
+      }
+      pos++;
     }
+    
+    // No comment found
+    return line;
+  }
 
+  /// Parses the input (file or string) and returns the list of categories.
+  List<Category> parse() {
+    List<String> lines;
+    
     try {
-      final lines = inputFile.readAsLinesSync();
+      if (_isFileSource) {
+        if (!_inputFile!.existsSync()) {
+          throw TslError(
+            message: 'Input file does not exist: ${_inputFile!.path}',
+            type: TslErrorType.fileSystem,
+            suggestion: 'Check that the file exists and the path is correct',
+          );
+        }
+        lines = _inputFile!.readAsLinesSync();
+      } else {
+        // Split string into lines
+        lines = _inputString!.split('\n');
+      }
+      
       // Store lines for error reporting
       for (var i = 0; i < lines.length; i++) {
         _lineMap[i + 1] = lines[i];
       }
 
-      Category? currentCategory;
+      _currentCategory = null;
+      _currentChoice = null;
 
       for (var i = 0; i < lines.length; i++) {
         final lineNumber = i + 1;
-        final line = lines[i].trim();
+        var line = lines[i].trim();
 
         // Skip empty lines
         if (line.isEmpty) continue;
 
-        // Skip comment lines (lines starting with # but don't treat category headers as comments)
-        if (line.startsWith('#') && !_isCategoryHeader(line)) continue;
+        // Remove inline comments
+        line = _removeInlineComments(line);
+        
+        // Skip if the line is empty after removing comments
+        if (line.isEmpty) continue;
 
-        // Parse category or choice
-        if (_isCategoryHeader(line)) {
-          // It's a category header
-          final categoryName = _extractCategoryName(line);
-          if (categoryName.isEmpty) {
-            throw TslError.fromLine(
-              message: 'Category name cannot be empty',
-              type: TslErrorType.syntax,
-              file: inputFile,
-              lineNumber: lineNumber,
-              suggestion: 'Provide a name for this category',
-            );
-          }
+        // Skip comment lines
+        if (line.startsWith('#')) continue;
 
-          if (categoryName.length > TslConstants.maxCategoryNameLength) {
-            throw TslError.fromLine(
-              message:
-                  'Category name "$categoryName" exceeds maximum length of ${TslConstants.maxCategoryNameLength} characters',
-              type: TslErrorType.syntax,
-              file: inputFile,
-              lineNumber: lineNumber,
-              spanStart: 1, // Skip the # character
-              spanEnd: categoryName.length + 1, // +1 for the # character
-              suggestion:
-                  'Shorten the category name to at most ${TslConstants.maxCategoryNameLength} characters',
-            );
-          }
-
-          currentCategory = Category(categoryName);
-          if (categoryName.length > maxCategoryNameLength) {
-            maxCategoryNameLength = categoryName.length;
-          }
-
-          // Add to categories list
-          categories.add(currentCategory);
-        } else if (line.endsWith(':')) {
-          // It's a subcategory
-          final categoryName = line.substring(0, line.length - 1).trim();
-          if (categoryName.isEmpty) {
-            throw TslError.fromLine(
-              message: 'Category name cannot be empty',
-              type: TslErrorType.syntax,
-              file: inputFile,
-              lineNumber: lineNumber,
-              suggestion: 'Provide a name for this category',
-            );
-          }
-
-          if (categoryName.length > TslConstants.maxCategoryNameLength) {
-            throw TslError.fromLine(
-              message:
-                  'Category name "$categoryName" exceeds maximum length of ${TslConstants.maxCategoryNameLength} characters',
-              type: TslErrorType.syntax,
-              file: inputFile,
-              lineNumber: lineNumber,
-              spanStart: 0,
-              spanEnd: categoryName.length,
-              suggestion:
-                  'Shorten the category name to at most ${TslConstants.maxCategoryNameLength} characters',
-            );
-          }
-
-          currentCategory = Category(categoryName);
-          if (categoryName.length > maxCategoryNameLength) {
-            maxCategoryNameLength = categoryName.length;
-          }
-
-          // Add to categories list
-          categories.add(currentCategory);
-        } else {
-          // It's a choice
-          if (currentCategory == null) {
-            throw TslError.fromLine(
-              message: 'Choice must be preceded by a category',
-              type: TslErrorType.syntax,
-              file: inputFile,
-              lineNumber: lineNumber,
-              suggestion:
-                  'Add a category header (CategoryName:) before this choice',
-            );
-          }
-
-          _parseChoiceLine(lines[i], currentCategory, lineNumber);
-        }
+        // Parse line based on content and context
+        _parseLine(line, lineNumber);
       }
 
       // Filter out categories with no choices
@@ -288,7 +344,7 @@ class TslParser {
         throw TslError(
           message: 'No valid categories found in file',
           type: TslErrorType.syntax,
-          filePath: inputFile.path,
+          filePath: sourcePath,
           suggestion:
               'Ensure your file contains at least one category with choices',
         );
@@ -302,57 +358,117 @@ class TslParser {
       throw TslError(
         message: 'Failed to parse file: ${e.toString()}',
         type: TslErrorType.other,
-        filePath: inputFile.path,
+        filePath: sourcePath,
         suggestion: 'Check file format and syntax',
       );
     }
   }
+  
+  /// Parses a line based on its content and context.
+  void _parseLine(String line, int lineNumber) {
+    // Check if it's a category (with colon)
+    if (line.endsWith(':')) {
+      final categoryName = line.substring(0, line.length - 1).trim();
+      _createCategory(categoryName, lineNumber);
+      return;
+    }
 
-  /// Checks if a line is a category header (starts with #).
-  bool _isCategoryHeader(String line) {
-    return line.startsWith('#');
-  }
-
-  /// Extracts the category name from a header line.
-  String _extractCategoryName(String line) {
-    // Remove the # and any trailing :
-    return line.substring(1).replaceAll(':', '').trim();
-  }
-
-  /// Parse a choice line and add it to the given category.
-  void _parseChoiceLine(String line, Category category, int lineNumber) {
-    // Split the line into the choice name and potential constraints
+    // Check if it's a choice (contains a period)
     final periodIndex = line.indexOf('.');
-    if (periodIndex == -1) {
-      throw TslError.fromLine(
-        message: 'Invalid choice format: missing period',
+    if (periodIndex >= 0) {
+      // If there's no current category, that's an error
+      if (_currentCategory == null) {
+        throw createErrorFromLine(
+          message: 'Choice must be preceded by a category',
+          type: TslErrorType.syntax,
+          lineNumber: lineNumber,
+          suggestion:
+              'Add a category header (CategoryName:) before this choice',
+        );
+      }
+
+      // The choice name is everything before the dot
+      final choiceName = line.substring(0, periodIndex).trim();
+      _createChoice(choiceName, lineNumber);
+
+      // Parse any constraints on the same line
+      final constraintText = line.substring(periodIndex + 1).trim();
+      if (constraintText.isNotEmpty) {
+        _parseConstraintText(constraintText, lineNumber, periodIndex + 1);
+      }
+
+      return;
+    }
+
+    // If we get here, it might be a constraint line for the current choice
+    if (_currentChoice != null && line.contains('[') && line.contains(']')) {
+      _parseConstraintText(line, lineNumber, 0);
+      return;
+    }
+
+    // If none of the above, it's an unrecognized line
+    if (line.trim().isNotEmpty) {
+      throw createErrorFromLine(
+        message: 'Unrecognized line format',
         type: TslErrorType.syntax,
-        file: inputFile,
         lineNumber: lineNumber,
-        suggestion:
-            'Each choice must end with a period followed by optional constraints',
+        suggestion: 'Check line format - must be a category, choice, or constraint',
+      );
+    }
+  }
+  
+  /// Creates a new category with the given name.
+  void _createCategory(String categoryName, int lineNumber) {
+    if (categoryName.isEmpty) {
+      throw createErrorFromLine(
+        message: 'Category name cannot be empty',
+        type: TslErrorType.syntax,
+        lineNumber: lineNumber,
+        suggestion: 'Provide a name for this category',
       );
     }
 
-    // The choice name is everything before the dot
-    final choiceName = line.substring(0, periodIndex).trim();
+    if (categoryName.length > TslConstants.maxCategoryNameLength) {
+      throw createErrorFromLine(
+        message:
+            'Category name "$categoryName" exceeds maximum length of ${TslConstants.maxCategoryNameLength} characters',
+        type: TslErrorType.syntax,
+        lineNumber: lineNumber,
+        spanStart: 0,
+        spanEnd: categoryName.length,
+        suggestion:
+            'Shorten the category name to at most ${TslConstants.maxCategoryNameLength} characters',
+      );
+    }
+
+    _currentCategory = Category(categoryName);
+    if (categoryName.length > maxCategoryNameLength) {
+      maxCategoryNameLength = categoryName.length;
+    }
+
+    // Add to categories list
+    categories.add(_currentCategory!);
+    
+    // Reset current choice since we're in a new category
+    _currentChoice = null;
+  }
+  
+  /// Creates a new choice with the given name.
+  void _createChoice(String choiceName, int lineNumber) {
     if (choiceName.isEmpty) {
-      throw TslError.fromLine(
+      throw createErrorFromLine(
         message: 'Choice name cannot be empty',
         type: TslErrorType.syntax,
-        file: inputFile,
         lineNumber: lineNumber,
-        columnNumber: line.substring(0, periodIndex + 1).length,
         suggestion: 'Provide a name for this choice',
       );
     }
 
     if (choiceName.length > TslConstants.maxChoiceNameLength) {
-      throw TslError.fromLine(
+      throw createErrorFromLine(
         message:
             'Choice name "$choiceName" exceeds maximum length of ${TslConstants.maxChoiceNameLength} characters',
         type: TslErrorType.syntax,
-        file: inputFile,
         lineNumber: lineNumber,
         spanStart: 0,
         spanEnd: choiceName.length,
@@ -361,27 +477,36 @@ class TslParser {
       );
     }
 
-    final choice = Choice(choiceName);
-
-    // Parse the remainder of the line for constraints
-    final constraintText = line.substring(periodIndex + 1).trim();
+    _currentChoice = Choice(choiceName);
+    _currentCategory!.addChoice(_currentChoice!);
+  }
+  
+  /// Parses constraint text and adds constraints to the current choice.
+  void _parseConstraintText(String constraintText, int lineNumber, int startOffset) {
+    if (_currentChoice == null) {
+      throw createErrorFromLine(
+        message: 'Constraint found but no choice is active',
+        type: TslErrorType.syntax,
+        lineNumber: lineNumber,
+        suggestion: 'Add a choice before defining constraints',
+      );
+    }
 
     // Extract constraints in square brackets
     final constraintPattern = RegExp(r'\[(.*?)\]');
     final matches = constraintPattern.allMatches(constraintText);
 
-    // If no valid constraints found but text exists after the period
+    // If no valid constraints found but text exists
     if (matches.isEmpty && constraintText.isNotEmpty) {
       // Check if there's any non-whitespace text
       if (constraintText.trim().isNotEmpty) {
-        throw TslError.fromLine(
+        throw createErrorFromLine(
           message:
               'Found text not enclosed in brackets: "${constraintText.trim()}"',
           type: TslErrorType.syntax,
-          file: inputFile,
           lineNumber: lineNumber,
-          spanStart: periodIndex + 1,
-          spanEnd: line.length,
+          spanStart: startOffset,
+          spanEnd: startOffset + constraintText.length,
           suggestion:
               'All constraints must be enclosed in square brackets, e.g., [property Name], [single], [error], etc.',
         );
@@ -398,13 +523,12 @@ class TslParser {
         if (start > lastEnd) {
           final betweenText = constraintText.substring(lastEnd, start).trim();
           if (betweenText.isNotEmpty) {
-            throw TslError.fromLine(
+            throw createErrorFromLine(
               message: 'Found text not enclosed in brackets: "$betweenText"',
               type: TslErrorType.syntax,
-              file: inputFile,
               lineNumber: lineNumber,
-              spanStart: periodIndex + 1 + lastEnd,
-              spanEnd: periodIndex + 1 + start,
+              spanStart: startOffset + lastEnd,
+              spanEnd: startOffset + start,
               suggestion:
                   'All constraints must be enclosed in square brackets, e.g., [property Name], [single], [error], etc.',
             );
@@ -418,13 +542,12 @@ class TslParser {
       if (lastEnd < constraintText.length) {
         final afterText = constraintText.substring(lastEnd).trim();
         if (afterText.isNotEmpty) {
-          throw TslError.fromLine(
+          throw createErrorFromLine(
             message: 'Found text not enclosed in brackets: "$afterText"',
             type: TslErrorType.syntax,
-            file: inputFile,
             lineNumber: lineNumber,
-            spanStart: periodIndex + 1 + lastEnd,
-            spanEnd: periodIndex + 1 + constraintText.length,
+            spanStart: startOffset + lastEnd,
+            spanEnd: startOffset + constraintText.length,
             suggestion:
                 'All constraints must be enclosed in square brackets, e.g., [property Name], [single], [error], etc.',
           );
@@ -432,19 +555,19 @@ class TslParser {
       }
     }
 
+    // Process each constraint
     for (final match in matches) {
       final constraint = match.group(1)?.trim() ?? '';
-      final constraintStartPos = periodIndex + 1 + match.start;
+      final constraintStartPos = startOffset + match.start;
       try {
-        parseConstraint(choice, constraint, lineNumber, constraintStartPos);
+        parseConstraint(_currentChoice!, constraint, lineNumber, constraintStartPos);
       } catch (e) {
         if (e is TslError) {
           rethrow;
         }
-        throw TslError.fromLine(
+        throw createErrorFromLine(
           message: 'Error parsing constraint: ${e.toString()}',
           type: TslErrorType.constraint,
-          file: inputFile,
           lineNumber: lineNumber,
           spanStart: constraintStartPos,
           spanEnd:
@@ -455,8 +578,6 @@ class TslParser {
         );
       }
     }
-
-    category.addChoice(choice);
   }
 
   /// Parses a constraint and applies it to the given [choice].
@@ -467,10 +588,9 @@ class TslParser {
     int columnNumber,
   ) {
     if (constraint.isEmpty) {
-      throw TslError.fromLine(
+      throw createErrorFromLine(
         message: 'Empty constraint',
         type: TslErrorType.constraint,
-        file: inputFile,
         lineNumber: lineNumber,
         columnNumber: columnNumber,
         suggestion: 'Remove empty brackets or add a valid constraint',
@@ -505,10 +625,9 @@ class TslParser {
       final propertyText =
           constraint.substring(TslConstants.propertyKeyword.length).trim();
       if (propertyText.isEmpty) {
-        throw TslError.fromLine(
+        throw createErrorFromLine(
           message: 'Property name missing after "property" keyword',
           type: TslErrorType.property,
-          file: inputFile,
           lineNumber: lineNumber,
           columnNumber: columnNumber + TslConstants.propertyKeyword.length,
           suggestion:
@@ -545,10 +664,9 @@ class TslParser {
       final expressionText =
           constraint.substring(TslConstants.ifKeyword.length).trim();
       if (expressionText.isEmpty) {
-        throw TslError.fromLine(
+        throw createErrorFromLine(
           message: 'Expression missing after "if" keyword',
           type: TslErrorType.expression,
-          file: inputFile,
           lineNumber: lineNumber,
           columnNumber: columnNumber + TslConstants.ifKeyword.length,
           suggestion:
@@ -567,10 +685,9 @@ class TslParser {
         if (e is TslError) {
           rethrow;
         }
-        throw TslError.expressionError(
+        throw createExpressionError(
           expression: expressionText,
           details: e.toString(),
-          file: inputFile,
           lineNumber: lineNumber,
           columnNumber: columnNumber + TslConstants.ifKeyword.length,
           suggestion:
@@ -583,10 +700,9 @@ class TslParser {
     // Check for else clauses
     if (constraint == TslConstants.elseKeyword) {
       if (!choice.hasIfExpression) {
-        throw TslError.fromLine(
+        throw createErrorFromLine(
           message: '"else" constraint requires a preceding "if" constraint',
           type: TslErrorType.constraint,
-          file: inputFile,
           lineNumber: lineNumber,
           columnNumber: columnNumber,
           suggestion:
@@ -597,10 +713,9 @@ class TslParser {
       return;
     }
 
-    throw TslError.fromLine(
+    throw createErrorFromLine(
       message: 'Unknown constraint: $constraint',
       type: TslErrorType.constraint,
-      file: inputFile,
       lineNumber: lineNumber,
       columnNumber: columnNumber,
       suggestion:

@@ -63,46 +63,63 @@ class TslError implements Exception {
   /// Optional error span (start:end) for highlighting the error location.
   final String? errorSpan;
 
-  /// Creates a TslError from a line in a file.
+  /// Creates a TslError from a line in either a file or a string.
+  /// 
+  /// This factory accepts either a File object or a filePath string and lineMap,
+  /// allowing it to work with both file-based and string-based sources.
   factory TslError.fromLine({
     required String message,
     required TslErrorType type,
-    required File file,
+    File? file,
+    String? filePath,
+    Map<int, String>? lineMap,
     required int lineNumber,
     int? columnNumber,
     String? suggestion,
     int? spanStart,
     int? spanEnd,
   }) {
+    assert(file != null || (filePath != null && lineMap != null),
+        'Either file or filePath+lineMap must be provided');
+    
     String? lineContent;
     String? errorSpan;
+    String resolvedFilePath;
 
-    try {
-      final lines = file.readAsLinesSync();
-      if (lineNumber > 0 && lineNumber <= lines.length) {
-        lineContent = lines[lineNumber - 1];
-
-        if (spanStart != null && spanEnd != null) {
-          final start = max(0, spanStart);
-          final end = min(lineContent.length, spanEnd);
-
-          if (start < end) {
-            // Create error span for highlighting
-            errorSpan = ' ' * start + '^' * (end - start);
-          }
-        } else if (columnNumber != null) {
-          // Just highlight the column position
-          errorSpan = ' ' * (columnNumber - 1) + '^';
+    if (file != null) {
+      resolvedFilePath = file.path;
+      try {
+        final lines = file.readAsLinesSync();
+        if (lineNumber > 0 && lineNumber <= lines.length) {
+          lineContent = lines[lineNumber - 1];
         }
+      } catch (_) {
+        // If we can't read the file, continue without line content
       }
-    } catch (_) {
-      // If we can't read the file, continue without line content
+    } else {
+      resolvedFilePath = filePath!;
+      lineContent = lineMap![lineNumber];
+    }
+
+    if (lineContent != null) {
+      if (spanStart != null && spanEnd != null) {
+        final start = max(0, spanStart);
+        final end = min(lineContent.length, spanEnd);
+
+        if (start < end) {
+          // Create error span for highlighting
+          errorSpan = ' ' * start + '^' * (end - start);
+        }
+      } else if (columnNumber != null) {
+        // Just highlight the column position
+        errorSpan = ' ' * (columnNumber - 1) + '^';
+      }
     }
 
     return TslError(
       message: message,
       type: type,
-      filePath: file.path,
+      filePath: resolvedFilePath,
       lineNumber: lineNumber,
       columnNumber: columnNumber,
       lineContent: lineContent,

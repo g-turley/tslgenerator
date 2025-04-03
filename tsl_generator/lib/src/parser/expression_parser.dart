@@ -27,7 +27,7 @@ class ExpressionParser {
       throw TslError(
         message: 'Empty expression',
         type: TslErrorType.expression,
-        filePath: tslParser.inputFile.path,
+        filePath: tslParser.filePath,
         lineNumber: lineNumber,
         columnNumber: columnOffset,
         suggestion: 'Provide a valid logical expression',
@@ -86,7 +86,7 @@ class ExpressionParser {
       throw TslError(
         message: 'Error parsing expression: ${e.toString()}',
         type: TslErrorType.expression,
-        filePath: tslParser.inputFile.path,
+        filePath: tslParser.filePath,
         lineNumber: lineNumber,
         columnNumber: columnOffset,
         suggestion: 'Check the syntax of your expression',
@@ -131,7 +131,7 @@ class ExpressionParser {
       throw TslError(
         message: 'Error creating binary expression: ${e.toString()}',
         type: TslErrorType.expression,
-        filePath: tslParser.inputFile.path,
+        filePath: tslParser.filePath,
         lineNumber: lineNumber,
         suggestion:
             'Check both sides of your ${operator.toString()} expression',
@@ -146,7 +146,7 @@ class ExpressionParser {
       throw TslError(
         message: 'Empty operand',
         type: TslErrorType.expression,
-        filePath: tslParser.inputFile.path,
+        filePath: tslParser.filePath,
         lineNumber: lineNumber,
         columnNumber: columnOffset,
         suggestion: 'Provide a valid property name or expression',
@@ -167,7 +167,7 @@ class ExpressionParser {
         throw TslError(
           message: 'Missing operand after negation (!)',
           type: TslErrorType.expression,
-          filePath: tslParser.inputFile.path,
+          filePath: tslParser.filePath,
           lineNumber: lineNumber,
           columnNumber: textColumnOffset,
           suggestion:
@@ -188,7 +188,7 @@ class ExpressionParser {
         throw TslError(
           message: 'Empty parentheses',
           type: TslErrorType.expression,
-          filePath: tslParser.inputFile.path,
+          filePath: tslParser.filePath,
           lineNumber: lineNumber,
           columnNumber: textColumnOffset,
           suggestion:
@@ -260,7 +260,7 @@ class ExpressionParser {
           throw TslError(
             message: 'Unmatched closing parenthesis in expression: $text',
             type: TslErrorType.expression,
-            filePath: tslParser.inputFile.path,
+            filePath: tslParser.filePath,
             suggestion:
                 'Add a matching opening parenthesis or remove the extra closing parenthesis',
           );
@@ -279,7 +279,7 @@ class ExpressionParser {
       throw TslError(
         message: 'Unmatched opening parenthesis in expression: $text',
         type: TslErrorType.expression,
-        filePath: tslParser.inputFile.path,
+        filePath: tslParser.filePath,
         suggestion:
             'Add a matching closing parenthesis or remove the extra opening parenthesis',
       );

@@ -75,7 +75,7 @@ Choice1.          [property Prop1]
     test('throws TslError for invalid constraint', () {
       testFile = File('test/invalid_constraint.tsl');
       testFile.writeAsStringSync('''
-# Category
+Category:
   Choice1.        [unknown_constraint]
 ''');
 
@@ -98,7 +98,7 @@ Choice1.          [property Prop1]
 test('throws TslError for undefined property in expression', () {
       testFile = File('test/undefined_property.tsl');
       testFile.writeAsStringSync('''
-# Category
+Category:
   Choice1.        [property PropA]
   Choice2.        [if PropB]
 ''');
@@ -122,7 +122,7 @@ test('throws TslError for undefined property in expression', () {
     test('throws TslError for unmatched parenthesis', () {
       testFile = File('test/unmatched_paren.tsl');
       testFile.writeAsStringSync('''
-# Category
+Category:
   Choice1.        [property PropA]
   Choice2.        [property PropB]
   Choice3.        [if PropA && (PropB]
@@ -146,7 +146,7 @@ test('throws TslError for undefined property in expression', () {
     test('throws TslError with suggestion for property name', () {
       testFile = File('test/similar_property.tsl');
       testFile.writeAsStringSync('''
-# Category
+Category:
   Choice1.        [property PropertyOne]
   Choice2.        [if PropertyOn]
 ''');
@@ -170,7 +170,7 @@ test('throws TslError for undefined property in expression', () {
     test('throws TslError for else without if', () {
       testFile = File('test/else_without_if.tsl');
       testFile.writeAsStringSync('''
-# Category
+Category:
   Choice1.        [else]
 ''');
 
@@ -193,7 +193,7 @@ test('throws TslError for undefined property in expression', () {
     test('throws TslError for invalid expression', () {
       testFile = File('test/invalid_expression.tsl');
       testFile.writeAsStringSync('''
-# Category
+Category:
   Choice1.        [property PropA]
   Choice2.        [if ]
 ''');
@@ -217,7 +217,7 @@ test('throws TslError for undefined property in expression', () {
     test('throws TslError for empty property name', () {
       testFile = File('test/empty_property.tsl');
       testFile.writeAsStringSync('''
-# Category
+Category:
   Choice1.        [property ]
 ''');
 
