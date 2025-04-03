@@ -33,7 +33,7 @@ void main() {
     ) {
       // Parse the existing file to create properties
       final parser = TslParser(testFile);
-      final categories = parser.parse();
+      final _ = parser.parse();
 
       // Set property values according to the provided map
       for (final entry in propertyValues.entries) {

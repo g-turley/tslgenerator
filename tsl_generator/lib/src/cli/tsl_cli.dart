@@ -10,14 +10,17 @@ class TslCli {
   /// Create a CLI instance with the given arguments.
   TslCli(this.args);
 
+  /// TSL Generator version
+  final String version = "1.0.0";
+
   /// The command-line arguments.
   final List<String> args;
 
   /// Whether to output to standard output.
   bool stdOutput = false;
 
-  /// Whether to show verbose error messages.
-  bool verboseErrors = false;
+  /// Whether to show verbose output.
+  bool verboseOutput = false;
 
   /// Whether to show colored output.
   bool useColors = true;
@@ -73,7 +76,7 @@ class TslCli {
 
     // Set options from results
     stdOutput = results['stdout'];
-    verboseErrors = results['verbose'];
+    verboseOutput = results['verbose'];
 
     if (results['output'] != null) {
       outputFilePath = results['output'];
@@ -107,16 +110,15 @@ class TslCli {
         // When only the input is provided, display stats and ask for confirmation to output frames.
         _printSuccess('\n${result.toSummaryString()}\n');
         stdout.write(
-          'Write test frames to ${stdOutput ? 'standard output' : outputFilePath} (y/N)? ',
+          'Write test frames to $outputFilePath (y/N)? ',
         );
         final answer = stdin.readLineSync()?.toLowerCase();
         if (answer == 'y' || answer == 'yes') {
           await _writeOutput(result.toFramesString());
         }
       } else {
-        // When additional arguments are provided, simply output the stats.
         _printSuccess('\n${result.toSummaryString()}');
-        if (outputFilePath != null) {
+        if (outputFilePath != null || stdOutput) {
           await _writeOutput(result.toFramesString());
         }
       }
@@ -158,7 +160,7 @@ class TslCli {
     parser.addFlag(
       'verbose',
       negatable: false,
-      help: 'Show verbose error messages.',
+      help: 'Show verbose output',
     );
 
     parser.addFlag(
@@ -189,7 +191,7 @@ class TslCli {
 
   /// Print the version information.
   void _printVersion() {
-    _printHeader('TSL Generator version 1.0.0');
+    _printHeader('TSL Generator version $version');
   }
 
   /// Print the banner.
