@@ -74,12 +74,12 @@ Category:
           type: TslErrorType.syntax,
           file: tempFile,
           lineNumber: 3,
-          columnNumber: 15,
+          columnNumber: 12,
           suggestion: 'Fix the error',
         );
 
         expect(error.lineContent, equals('  Choice1. [property ]'));
-        expect(error.errorSpan, equals('              ^'));
+        expect(error.errorSpan, equals('             ^'));
 
         // Test with span
         final spanError = TslError.fromLine(
@@ -87,13 +87,13 @@ Category:
           type: TslErrorType.syntax,
           file: tempFile,
           lineNumber: 3,
-          spanStart: 10,
-          spanEnd: 15,
+          spanStart: 11,
+          spanEnd: 16,
           suggestion: 'Fix the span',
         );
 
         expect(spanError.lineContent, equals('  Choice1. [property ]'));
-        expect(spanError.errorSpan, equals('          ^^^^^'));
+        expect(spanError.errorSpan, equals('             ^^^^^'));
       } finally {
         // Clean up
         tempFile.deleteSync();

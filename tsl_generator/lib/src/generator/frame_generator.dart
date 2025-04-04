@@ -11,6 +11,7 @@ class FrameGenerator {
   /// This is the recommended constructor when you have a complete
   /// TslSpecification.
   factory FrameGenerator.fromSpecification(TslSpecification specification) {
+    specification.validate();
     return FrameGenerator(specification.categories);
   }
 

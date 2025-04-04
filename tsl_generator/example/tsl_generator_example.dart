@@ -60,54 +60,69 @@ void parseFromFile() {
 
 /// Example of creating a TSL specification programmatically.
 void createProgrammatically() {
-  // Create an empty specification
+  // === Create Specification ===
   final spec = TslSpecification();
 
-  // Create properties
-  final emptyPattern = spec.createProperty('emptypattern');
+  // === Define Properties ===
   final longPattern = spec.createProperty('longpattern');
+  final emptyPattern = spec.createProperty('emptypattern');
 
-  // Create categories
+  // === Define Pattern Category and Choices ===
   final patternCategory = Category('Pattern');
-  final lengthCategory = Category('Length');
 
-  // Create choices for pattern category
-  final alphaChoice = Choice('Alpha pattern.');
-  final numericChoice = Choice('Numeric pattern.');
-  final mixedChoice = Choice('Mixed pattern.');
+  final alphaChoice = Choice('Alpha pattern');
+  final numericChoice = Choice('Numeric pattern');
+
+  final mixedChoice = Choice('Mixed pattern');
   mixedChoice.ifExpression = Expression(
     notA: true,
     propA: emptyPattern,
-    propB: Property('dummy'),
-  );
+    propB: longPattern,
+  ); // [if !emptypattern || longpattern]
 
-  // Create choices for length category
-  final emptyChoice = Choice('Empty.');
-  emptyChoice.addProperty(emptyPattern);
+  patternCategory
+    ..addChoice(alphaChoice)
+    ..addChoice(numericChoice)
+    ..addChoice(mixedChoice);
 
-  final shortChoice = Choice('Short.');
+  // === Define Length Category and Choices ===
+  final lengthCategory = Category('Length');
 
-  final longChoice = Choice('Long.');
-  longChoice.addProperty(longPattern);
+  final emptyChoice = Choice('Empty')..addProperty(emptyPattern); // [property emptypattern]
+  final shortChoice = Choice('Short');
+  final longChoice = Choice('Long')..addProperty(longPattern);   // [property longpattern]
 
-  // Add choices to categories
-  patternCategory.addChoice(alphaChoice);
-  patternCategory.addChoice(numericChoice);
-  patternCategory.addChoice(mixedChoice);
+  lengthCategory
+    ..addChoice(emptyChoice)
+    ..addChoice(shortChoice)
+    ..addChoice(longChoice);
 
-  lengthCategory.addChoice(emptyChoice);
-  lengthCategory.addChoice(shortChoice);
-  lengthCategory.addChoice(longChoice);
+  // === Add Categories to Specification ===
+  spec
+    ..addCategory(lengthCategory)
+    ..addCategory(patternCategory);
 
-  // Add categories to specification
-  spec.addCategory(patternCategory);
-  spec.addCategory(lengthCategory);
+  // === Generate TSL and Frames ===
+  print(spec.toTslString());
 
-  // Generate frames
+  /*
+  TSL Output:
+
+  Length:
+    Empty. [property emptypattern]
+    Short.
+    Long. [property longpattern]
+
+  Pattern:
+    Alpha pattern.
+    Numeric pattern.
+    Mixed pattern. [if !emptypattern || longpattern]
+  */
+
   final generator = FrameGenerator.fromSpecification(spec);
   final result = generator.generate();
 
-  // Print statistics and some frames
+  // === Output Results ===
   print('Generated ${result.totalFrames} test frames');
 
   if (result.frames.isNotEmpty) {

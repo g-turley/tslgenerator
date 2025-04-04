@@ -102,17 +102,19 @@ class TslError implements Exception {
     }
 
     if (lineContent != null) {
+      final match = RegExp(r'^\s*').firstMatch(lineContent);
+       int columnStartingWhitespace = match?.group(0)?.length ?? 0;
       if (spanStart != null && spanEnd != null) {
         final start = max(0, spanStart);
         final end = min(lineContent.length, spanEnd);
 
         if (start < end) {
           // Create error span for highlighting
-          errorSpan = ' ' * start + '^' * (end - start);
+          errorSpan = ' ' * (start + columnStartingWhitespace) + '^' * (end - start);
         }
       } else if (columnNumber != null) {
         // Just highlight the column position
-        errorSpan = ' ' * (columnNumber - 1) + '^';
+        errorSpan = '${' ' * (columnNumber - 1 + columnStartingWhitespace)}^';
       }
     }
 

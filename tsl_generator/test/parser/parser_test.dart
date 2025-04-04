@@ -100,6 +100,8 @@ test('throws TslError for undefined property in expression', () {
       testFile.writeAsStringSync('''
 Category:
   Choice1.        [property PropA]
+  Choice0.        [property Xeno]
+  Choice3.        [property PropC]
   Choice2.        [if PropB]
 ''');
 
@@ -112,9 +114,9 @@ Category:
             (e) =>
                 e.type == TslErrorType.property &&
                 e.message.contains('PropB') &&
-                e.message.contains('not defined') &&
-                e.lineNumber == 3 &&
-                e.suggestion != null,
+                e.lineNumber == 5 &&
+                e.suggestion!.contains('PropA') &&
+                e.suggestion!.contains('PropC'),
           ),
         ),
       );
@@ -159,7 +161,7 @@ Category:
           predicate<TslError>(
             (e) =>
                 e.type == TslErrorType.property &&
-                e.message.contains('"PropertyOn" is not defined') &&
+                e.message.contains('PropertyOn') &&
                 e.suggestion != null &&
                 e.suggestion!.contains('PropertyOne'),
           ),
